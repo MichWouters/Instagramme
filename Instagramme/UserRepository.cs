@@ -13,6 +13,26 @@ namespace Instagramme
         private const string connectionString = @"
                 Data Source=.\SQLEXPRESS;Initial Catalog=Instagramme;Integrated Security=True";
 
+        public void AddUser(string name)
+        {
+            // !!!BAD PRACTICE!!! 
+            //string query = $"INSERT INTO USERS(UserName) VALUES({name})";
+
+            // Good practice. Use SQL Parameters to sanitize input.
+            string query = $"INSERT INTO USERS(UserName) VALUES(@placeholder)";
+                       
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+
+                // Sanitize user input by parsing it through a SQL Parameter(s)
+                command.Parameters.AddWithValue("@placeholder", name);
+                connection.Open();
+                command.ExecuteNonQuery();
+            }
+        }
+        
         public void GetAllUsers()
         {
             string query = "SELECT * FROM [Instagramme].[dbo].[Users]";
@@ -20,10 +40,25 @@ namespace Instagramme
             GetData(query);
         }
 
-        public void GetXAmountOfUsers(int amountOfUsers)
+        public void GetXAmountOfUsers(string amountOfUsers)
         {
-            string query = $"SELECT * FROM [Instagramme].[dbo].[Users] WHERE UserId <= {amountOfUsers}";
-            GetData(query);
+            // Good practice. Use SQL Parameters to sanitize input, even in Select statements
+            string query = $"SELECT * FROM [Instagramme].[dbo].[Users] WHERE UserId <= @maxNumber";
+            
+            // A connection has to be open between app and DB to allow for communication
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                // A command will execute a query on an open connection
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@maxNumber", amountOfUsers);
+
+                // We have to manually open a connection
+                // Open late, close early -> An open connection is precious.
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                ReadAllRows(reader);
+            }
         }
 
         private void GetData(string query)
@@ -33,7 +68,7 @@ namespace Instagramme
             {
                 // A command will execute a query on an open connection
                 SqlCommand command = new SqlCommand(query, connection);
-
+                
                 // We have to manually open a connection
                 // Open late, close early -> An open connection is precious.
                 connection.Open();
